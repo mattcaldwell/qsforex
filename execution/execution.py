@@ -60,16 +60,15 @@ class OANDAExecutionHandler(ExecutionHandler):
             "Authorization": "Bearer " + self.access_token
         }
         params = urlencode({
-            "instrument" : instrument,
-            "units" : event.units,
-            "type" : event.order_type,
-            "side" : event.side
+            "instrument": instrument,
+            "units": event.units,
+            "type": event.order_type,
+            "side": event.side
         })
         self.conn.request(
-            "POST", 
-            "/v1/accounts/%s/orders" % str(self.account_id), 
+            "POST",
+            "/v1/accounts/%s/orders" % str(self.account_id),
             params, headers
         )
         response = self.conn.getresponse().read().decode("utf-8").replace("\n","").replace("\t","")
         self.logger.debug(response)
-        

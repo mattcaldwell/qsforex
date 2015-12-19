@@ -6,19 +6,20 @@ try:
     import Queue as queue
 except ImportError:
     import queue
+import os
 import threading
 import time
 
 from qsforex.execution.execution import OANDAExecutionHandler
 from qsforex.portfolio.portfolio import Portfolio
 from qsforex import settings
-from qsforex.strategy.strategy import TestStrategy
+from qsforex.strategy.strategy import TestStrategy, MovingAverageCrossStrategy
 from qsforex.data.streaming import StreamingForexPrices
 
 
 def trade(events, strategy, portfolio, execution, heartbeat):
     """
-    Carries out an infinite while loop that polls the 
+    Carries out an infinite while loop that polls the
     events queue and directs each event to either the
     strategy component of the execution handler. The
     loop will then pause for "heartbeat" seconds and
@@ -46,7 +47,7 @@ def trade(events, strategy, portfolio, execution, heartbeat):
 
 if __name__ == "__main__":
     # Set up logging
-    logging.config.fileConfig('../logging.conf')
+    logging.config.fileConfig(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'logging.conf'))
     logger = logging.getLogger('qsforex.trading.trading')
 
     # Set the number of decimal places to 2
@@ -62,13 +63,13 @@ if __name__ == "__main__":
     # Create the OANDA market price streaming class
     # making sure to provide authentication commands
     prices = StreamingForexPrices(
-        settings.STREAM_DOMAIN, settings.ACCESS_TOKEN, 
+        settings.STREAM_DOMAIN, settings.ACCESS_TOKEN,
         settings.ACCOUNT_ID, pairs, events
     )
 
-    # Create the strategy/signal generator, passing the 
+    # Create the strategy/signal generator, passing the
     # instrument and the events queue
-    strategy = TestStrategy(pairs, events)
+    strategy = MovingAverageCrossStrategy(pairs, events)
 
     # Create the portfolio object that will be used to
     # compare the OANDA positions with the local, to
@@ -80,11 +81,11 @@ if __name__ == "__main__":
     # Create the execution handler making sure to
     # provide authentication commands
     execution = OANDAExecutionHandler(
-        settings.API_DOMAIN, 
-        settings.ACCESS_TOKEN, 
+        settings.API_DOMAIN,
+        settings.ACCESS_TOKEN,
         settings.ACCOUNT_ID
     )
-    
+
     # Create two separate threads: One for the trading loop
     # and another for the market price streaming class
     trade_thread = threading.Thread(
@@ -93,7 +94,7 @@ if __name__ == "__main__":
         )
     )
     price_thread = threading.Thread(target=prices.stream_to_queue, args=[])
-    
+
     # Start both threads
     logger.info("Starting trading thread")
     trade_thread.start()
