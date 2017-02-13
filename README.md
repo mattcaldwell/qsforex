@@ -50,7 +50,13 @@ BASE_CURRENCY = "GBP"
 EQUITY = Decimal("100000.00")
 ```
 
-4) Create a virtual environment ("virtualenv") for the QSForex code and utilise pip to install the requirements. For instance in a Unix-based system (Mac or Linux) you might create such a directory as follows by entering the following commands in the terminal:
+4) Install TA-lib.
+
+```
+brew install ta-lib (on Mac)
+```
+
+5) Create a virtual environment ("virtualenv") for the QSForex code and utilise pip to install the requirements. For instance in a Unix-based system (Mac or Linux) you might create such a directory as follows by entering the following commands in the terminal:
 
 ```
 mkdir -p ~/venv/qsforex
@@ -82,7 +88,7 @@ You will now be able to run the subsequent commands correctly.
 
 ## Practice/Live Trading
 
-5) At this stage, if you simply wish to carry out practice or live trading then you can run ```python trading/trading.py```, which will use the default ```TestStrategy``` trading strategy. This simply buys or sells a currency pair every 5th tick. It is purely for testing - do not use it in a live trading environment!
+6) At this stage, if you simply wish to carry out practice or live trading then you can run ```python trading/trading.py```, which will use the default ```TestStrategy``` trading strategy. This simply buys or sells a currency pair every 5th tick. It is purely for testing - do not use it in a live trading environment!
 
 If you wish to create a more useful strategy, then simply create a new class with a descriptive name, e.g. ```MeanReversionMultiPairStrategy``` and ensure it has a ```calculate_signals``` method. You will need to pass this class the ```pairs``` list as well as the ```events``` queue, as in ```trading/trading.py```.
 
@@ -90,7 +96,7 @@ Please look at ```strategy/strategy.py``` for details.
 
 ## Backtesting
 
-6) In order to carry out any backtesting it is necessary to generate simulated forex data or download historic tick data. If you wish to simply try the software out, the quickest way to generate an example backtest is to generate some simulated data. The current data format used by QSForex is the same as that provided by the DukasCopy Historical Data Feed at https://www.dukascopy.com/swiss/english/marketwatch/historical/.
+7) In order to carry out any backtesting it is necessary to generate simulated forex data or download historic tick data. If you wish to simply try the software out, the quickest way to generate an example backtest is to generate some simulated data. The current data format used by QSForex is the same as that provided by the DukasCopy Historical Data Feed at https://www.dukascopy.com/swiss/english/marketwatch/historical/.
 
 To generate some historical data, make sure that the ```CSV_DATA_DIR``` setting in ```settings.py``` is to set to a directory where you want the historical data to live. You then need to run ```generate_simulated_pair.py```, which is under the ```scripts/``` directory. It expects a single command line argument, which in this case is the currency pair in ```BBBQQQ``` format. For example:
 
@@ -101,7 +107,7 @@ python scripts/generate_simulated_pair.py GBPUSD
 
 At this stage the script is hardcoded to create a single month's data for January 2014. That is, you will see individual files, of the format ```BBBQQQ_YYYYMMDD.csv``` (e.g. ```GBPUSD_20140112.csv```) appear in your ```CSV_DATA_DIR``` for all business days in that month. If you wish to change the month/year of the data output, simply modify the file and re-run.
 
-7) Now that the historical data has been generated it is possible to carry out a backtest. The backtest file itself is stored in ```backtest/backtest.py```, but this only contains the ```Backtest``` class. To actually execute a backtest you need to instantiate this class and provide it with the necessary modules. 
+8) Now that the historical data has been generated it is possible to carry out a backtest. The backtest file itself is stored in ```backtest/backtest.py```, but this only contains the ```Backtest``` class. To actually execute a backtest you need to instantiate this class and provide it with the necessary modules. 
 
 The best way to see how this is done is to look at the example Moving Average Crossover implementation in the ```examples/mac.py``` file and use this as a template. This makes use of the ```MovingAverageCrossStrategy``` which is found in ```strategy/strategy.py```. This defaults to trading both GBP/USD and EUR/USD to demonstrate multiple currency pair usage. It uses data found in ```CSV_DATA_DIR```.
 
@@ -113,7 +119,7 @@ python examples/mac.py
 
 **This will take some time.** On my Ubuntu desktop system at home, with the historical data generated via ```generate_simulated_pair.py```, it takes around 5-10 mins to run. A large part of this calculation occurs at the end of the actual backtest, when the drawdown is being calculated, so please remember that the code has not hung up! Please leave it until completion.
 
-8) If you wish to view the performance of the backtest you can simply use ```output.py``` to view an equity curve, period returns (i.e. tick-to-tick returns) and a drawdown curve:
+9) If you wish to view the performance of the backtest you can simply use ```output.py``` to view an equity curve, period returns (i.e. tick-to-tick returns) and a drawdown curve:
 
 ```
 python backtest/output.py

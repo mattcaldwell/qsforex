@@ -33,6 +33,49 @@ class TestStrategy(object):
             self.ticks += 1
 
 
+class PSARWithMACDStrategy(object):
+    """
+    Parabolic SAR with MACD.
+
+    See: http://forex-strategies-revealed.com/trading-strategy-eurusd
+    """
+    def __init__(self, pairs, events, step=0.02, af_max=0.2):
+        self.pairs = pairs
+        self.pairs_dict = self.create_pairs_dict()
+        self.events = events
+        self.step = step
+        self.af_max = af_max
+
+    def create_pairs_dict(self):
+        attr_dict = {
+            "acceleration_factor": 0.2,
+            "extreme_point": None,
+            "invested": False,
+            "ticks": 0,
+            "psar_current": None,
+            "psar_last": None,
+        }
+        pairs_dict = {}
+        for p in self.pairs:
+            pairs_dict[p] = copy.deepcopy(attr_dict)
+        return pairs_dict
+
+    def calculate_signals(self, event):
+        if event.type == 'TICK' and event.instrument == self.pairs[0]:
+            pair = event.instrument
+            # event.bid (price when selling)
+            # event.ask (price when buying)
+            pd = self.pairs_dict[pair]
+            if pd["ticks"] == 0:
+                # first tick
+                pass
+            else:
+                psar_last = pd["psar_last"]
+                pd["psar_last"] = pd["psar_current"]
+                pd["psar_current"] = psar_last + pd["acceleration_factor"] * (
+                    pd["extreme_point"] - psar_last)
+            pd["ticks"] += 1
+
 class MovingAverageCrossStrategy(object):
     """
     A basic Moving Average Crossover strategy that generates

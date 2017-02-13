@@ -5,7 +5,7 @@ import pandas as pd
 def create_drawdowns(pnl):
     """
     Calculate the largest peak-to-trough drawdown of the PnL curve
-    as well as the duration of the drawdown. Requires that the 
+    as well as the duration of the drawdown. Requires that the
     pnl_returns is a pandas Series.
 
     Parameters:
@@ -15,7 +15,7 @@ def create_drawdowns(pnl):
     drawdown, duration - Highest peak-to-trough drawdown and duration.
     """
 
-    # Calculate the cumulative returns curve 
+    # Calculate the cumulative returns curve
     # and set up the High Water Mark
     hwm = [0]
 

@@ -100,9 +100,12 @@ class HistoricCSVPriceHandler(PriceHandler):
         self.file_dates = self._list_all_file_dates()
         self.continue_backtest = True
         self.cur_date_idx = 0
-        self.cur_date_pairs = self._open_convert_csv_files_for_day(
-            self.file_dates[self.cur_date_idx]
-        )
+        try:
+            self.cur_date_pairs = self._open_convert_csv_files_for_day(
+                self.file_dates[self.cur_date_idx]
+            )
+        except IndexError:
+            raise Exception('No data files found!')
 
     def _list_all_csv_files(self):
         files = os.listdir(settings.CSV_DATA_DIR)
@@ -137,9 +140,16 @@ class HistoricCSVPriceHandler(PriceHandler):
             self.pair_frames[p] = pd.io.parsers.read_csv(
                 pair_path, header=True, index_col=0,
                 parse_dates=True, dayfirst=True,
-                names=("Time", "Ask", "Bid", "AskVolume", "BidVolume")
+                # names=("Time", "Ask", "Bid", "AskVolume", "BidVolume")
+                names=("Time", "Bid", "Ask", "BidVolume", "AskVolume")
             )
             self.pair_frames[p]["Pair"] = p
+            grouped = self.pair_frames[p].groupby("Pair")
+            ask = grouped["Ask"].resample("15Min", how="ohlc")
+            bid = grouped["Bid"].resample("15Min", how="ohlc")
+        self.pair_frames[p] = pd.concat([ask['close'], ask['open'], ask['close'], bid['close'], bid['open'], bid['close']], axis=1, keys=['Ask', 'Ask_Open', 'Ask_Close', 'Bid', 'Bid_Open', 'Bid_Close'])
+        for pair in self.pair_frames:
+            self.pair_frames[pair]['Pair'] = 'EURUSD'  # HACK
         return pd.concat(self.pair_frames.values()).sort().iterrows()
 
     def _update_csv_for_day(self):
