@@ -54,7 +54,7 @@ class PriceHandler(object):
         prices_dict.update(inv_prices_dict)
         return prices_dict
 
-    def invert_prices(self, pair, bid, ask):
+    def invert_prices(self, pair, bid, bid_low, bid_high, ask, ask_low, ask_high):
         """
         Simply inverts the prices for a particular currency pair.
         This will turn the bid/ask of "GBPUSD" into bid/ask for
@@ -65,10 +65,22 @@ class PriceHandler(object):
         inv_bid = (Decimal("1.0")/bid).quantize(
             Decimal("0.00001")
         )
+        inv_bid_low = (Decimal("1.0")/bid_low).quantize(
+            Decimal("0.00001")
+        )
+        inv_bid_high = (Decimal("1.0")/bid_high).quantize(
+            Decimal("0.00001")
+        )
         inv_ask = (Decimal("1.0")/ask).quantize(
             Decimal("0.00001")
         )
-        return inv_pair, inv_bid, inv_ask
+        inv_ask_low = (Decimal("1.0")/ask_low).quantize(
+            Decimal("0.00001")
+        )
+        inv_ask_high = (Decimal("1.0")/ask_high).quantize(
+            Decimal("0.00001")
+        )
+        return inv_pair, inv_bid, inv_bid_low, inv_bid_high, inv_ask, inv_ask_low, inv_ask_high
 
 
 class HistoricCSVPriceHandler(PriceHandler):
@@ -147,7 +159,7 @@ class HistoricCSVPriceHandler(PriceHandler):
             grouped = self.pair_frames[p].groupby("Pair")
             ask = grouped["Ask"].resample("15Min", how="ohlc")
             bid = grouped["Bid"].resample("15Min", how="ohlc")
-        self.pair_frames[p] = pd.concat([ask['close'], ask['open'], ask['close'], bid['close'], bid['open'], bid['close']], axis=1, keys=['Ask', 'Ask_Open', 'Ask_Close', 'Bid', 'Bid_Open', 'Bid_Close'])
+        self.pair_frames[p] = pd.concat([ask['close'], ask['low'], ask['high'], bid['close'], bid['low'], bid['high']], axis=1, keys=['Ask', 'Ask_Low', 'Ask_High', 'Bid', 'Bid_Low', 'Bid_High'])
         for pair in self.pair_frames:
             self.pair_frames[pair]['Pair'] = 'EURUSD'  # HACK
         return pd.concat(self.pair_frames.values()).sort().iterrows()
@@ -189,21 +201,42 @@ class HistoricCSVPriceHandler(PriceHandler):
         bid = Decimal(str(row["Bid"])).quantize(
             Decimal("0.00001")
         )
+        bid_low = Decimal(str(row["Bid_Low"])).quantize(
+            Decimal("0.00001")
+        )
+        bid_high = Decimal(str(row["Bid_High"])).quantize(
+            Decimal("0.00001")
+        )
         ask = Decimal(str(row["Ask"])).quantize(
+            Decimal("0.00001")
+        )
+        ask_low = Decimal(str(row["Ask_Low"])).quantize(
+            Decimal("0.00001")
+        )
+        ask_high = Decimal(str(row["Ask_High"])).quantize(
             Decimal("0.00001")
         )
 
         # Create decimalised prices for traded pair
         self.prices[pair]["bid"] = bid
+        self.prices[pair]["bid_low"] = bid_low
+        self.prices[pair]["bid_high"] = bid_high
         self.prices[pair]["ask"] = ask
+        self.prices[pair]["ask_low"] = ask_low
+        self.prices[pair]["ask_high"] = ask_high
         self.prices[pair]["time"] = index
 
         # Create decimalised prices for inverted pair
-        inv_pair, inv_bid, inv_ask = self.invert_prices(pair, bid, ask)
+        inv_pair, inv_bid, inv_bid_low, inv_bid_high, inv_ask, inv_ask_low, inv_ask_high = self.invert_prices(pair, bid, bid_low, bid_high, ask, ask_low, ask_high)
         self.prices[inv_pair]["bid"] = inv_bid
+        self.prices[inv_pair]["bid_low"] = inv_bid_low
+        self.prices[inv_pair]["bid_high"] = inv_bid_high
         self.prices[inv_pair]["ask"] = inv_ask
+        self.prices[inv_pair]["ask_low"] = inv_ask_low
+        self.prices[inv_pair]["ask_high"] = inv_ask_high
         self.prices[inv_pair]["time"] = index
 
         # Create the tick event for the queue
-        tev = TickEvent(pair, index, bid, ask)
+        tev = TickEvent(pair, index, bid, ask, bid_low=bid_low, bid_high=bid_high,
+                        ask_low=ask_low, ask_high=ask_high)
         self.events_queue.put(tev)

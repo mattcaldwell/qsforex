@@ -1,4 +1,5 @@
 import copy
+from decimal import Decimal
 
 from qsforex.event.event import SignalEvent
 
@@ -39,26 +40,38 @@ class PSARWithMACDStrategy(object):
 
     See: http://forex-strategies-revealed.com/trading-strategy-eurusd
     """
-    def __init__(self, pairs, events, step=0.02, af_max=0.2):
+    def __init__(self, pairs, events, step=0.02, af=0.2, af_max=0.2):
         self.pairs = pairs
-        self.pairs_dict = self.create_pairs_dict()
         self.events = events
-        self.step = step
-        self.af_max = af_max
+        self.step = Decimal(step)
+        self.af = Decimal(af)
+        self.af_max = Decimal(af_max)
+        self.pairs_dict = self.create_pairs_dict()
 
     def create_pairs_dict(self):
         attr_dict = {
-            "acceleration_factor": 0.2,
-            "extreme_point": None,
+            "af": self.af,
+            "direction": 0,
+            "ep": Decimal(0),
             "invested": False,
+            "long": False,
+            "short": False,
             "ticks": 0,
-            "psar_current": None,
-            "psar_last": None,
+            "highs": [],
+            "last_event": None,
+            "lows": [],
+            "prior_sar": None,
         }
         pairs_dict = {}
         for p in self.pairs:
             pairs_dict[p] = copy.deepcopy(attr_dict)
         return pairs_dict
+
+    def in_uptrend(self, pd, event):
+        return pd["direction"] > 0
+
+    def in_downtrend(self, pd, event):
+        return pd["direction"] < 0
 
     def calculate_signals(self, event):
         if event.type == 'TICK' and event.instrument == self.pairs[0]:
@@ -66,14 +79,85 @@ class PSARWithMACDStrategy(object):
             # event.bid (price when selling)
             # event.ask (price when buying)
             pd = self.pairs_dict[pair]
+
+            if event.ask_high.is_nan() or event.ask_low.is_nan() or \
+               event.bid_high.is_nan() or event.bid_low.is_nan():
+                # skip bad data
+                return
+
             if pd["ticks"] == 0:
-                # first tick
-                pass
-            else:
-                psar_last = pd["psar_last"]
-                pd["psar_last"] = pd["psar_current"]
-                pd["psar_current"] = psar_last + pd["acceleration_factor"] * (
-                    pd["extreme_point"] - psar_last)
+                pd["last_event"] = event
+                pd["ticks"] += 1
+                return
+
+            elif pd["ticks"] == 1:
+                pd["prior_sar"] = (event.ask_high + event.ask_low + \
+                                   event.bid_high + event.bid_low) / Decimal(4)
+
+                if (pd["prior_sar"] - event.bid_low) > (event.bid_high - pd["prior_sar"]):
+                    pd["direction"] = 1
+                    pd["highs"].append(pd["last_event"].ask_high)
+                    pd["lows"].append(pd["last_event"].ask_low)
+                    pd["af"] = self.af
+                    pd["ep"] = max(pd["highs"])
+                else:
+                    pd["direction"] = -1
+                    pd["highs"].append(pd["last_event"].bid_high)
+                    pd["lows"].append(pd["last_event"].bid_low)
+                    pd["af"] = -self.af
+                    pd["ep"] = min(pd["lows"])
+
+            if self.in_uptrend(pd, event):
+                pd["highs"].append(event.ask_high)
+                pd["lows"].append(event.ask_low)
+
+                sar = pd["prior_sar"] + pd["af"] * (pd["ep"] - pd["prior_sar"])
+                high = pd["highs"][-1]
+                if high > pd["ep"]:
+                    pd["af"] = min(pd["af"] + self.step, self.af_max)
+                    pd["ep"] = high
+
+                if min(pd["lows"]) < sar:
+                    pd["direction"] = -2
+                    pd["af"] = -self.af
+                    sar = pd["ep"]
+
+            elif self.in_downtrend(pd, event):
+                pd["highs"].append(event.bid_high)
+                pd["lows"].append(event.bid_low)
+
+                sar = pd["prior_sar"] + pd["af"] * (pd["prior_sar"] - pd["ep"])
+
+                low = pd["lows"][-1]
+                if low < pd["ep"]:
+                    pd["af"] = max(pd["af"] - self.step, -self.af_max)
+                    pd["ep"] = low
+
+                if max(pd["highs"]) > sar:
+                    pd["af"] = self.af
+                    sar = pd["ep"]
+
+            if pd["direction"] == -2:
+                pd["direction"] = -1
+
+            if sar < event.ask:
+                if not pd["long"]:
+                    # buy signal
+                    signal = SignalEvent(self.pairs[0], "market", "buy", event.time)
+                    self.events.put(signal)
+                    pd["long"] = True
+                    pd["short"] = False
+
+            if sar > event.bid:
+                if not pd["short"]:
+                    # sell signal
+                    signal = SignalEvent(self.pairs[0], "market", "sell", event.time)
+                    self.events.put(signal)
+                    pd["short"] = True
+                    pd["long"] = False
+
+            pd["prior_sar"] = sar
+            pd["last_event"] = event
             pd["ticks"] += 1
 
 class MovingAverageCrossStrategy(object):

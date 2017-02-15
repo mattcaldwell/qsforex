@@ -3,12 +3,16 @@ class Event(object):
 
 
 class TickEvent(Event):
-    def __init__(self, instrument, time, bid, ask):
+    def __init__(self, instrument, time, bid, ask, bid_low=None, bid_high=None, ask_low=None, ask_high=None):
         self.type = 'TICK'
         self.instrument = instrument
         self.time = time
         self.bid = bid
+        self.bid_low = bid_low
+        self.bid_high = bid_high
         self.ask = ask
+        self.ask_low = ask_low
+        self.ask_high = ask_high
 
     def __str__(self):
         return "Type: %s, Instrument: %s, Time: %s, Bid: %s, Ask: %s" % (

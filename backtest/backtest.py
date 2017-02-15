@@ -45,7 +45,7 @@ class Backtest(object):
         events queue and directs each event to either the
         strategy component of the execution handler. The
         loop will then pause for "heartbeat" seconds and
-        continue unti the maximum number of iterations is
+        continue until the maximum number of iterations is
         exceeded.
         """
         print("Running Backtest...")

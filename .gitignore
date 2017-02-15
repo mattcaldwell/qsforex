@@ -27,3 +27,7 @@ pip-log.txt
 
 #Mr Developer
 .mr.developer.cfg
+
+#Other
+.DS_Store
+.env
